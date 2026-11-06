@@ -1,0 +1,7 @@
+/assets/
+/.env
+/output/
+/output_azure/
+/output_paddle/
+/boardgame_output/
+.idea/**

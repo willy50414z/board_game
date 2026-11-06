@@ -1,0 +1,11 @@
+[project]
+name = "board-game"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "Pillow>=10.0.0",
+    "paddleocr>=2.7.0",
+    "paddlepaddle>=2.5.0; sys_platform != 'darwin'", # 依平台調整，Mac上通常需要特別處理或僅裝CPU版
+    "azure-ai-documentintelligence>=1.0.0",
+    "ollama>=0.1.0","PaddleX[ocr]","markitdown[all]","openai"
+]
