@@ -83,3 +83,4 @@ The sample attempts to crop layout blocks labelled as images/figures/charts. If 
 - PaddleOCR PP-StructureV3: https://www.paddleocr.ai/latest/en/version3.x/pipeline_usage/PP-StructureV3.html
 - PaddleOCR installation: https://www.paddleocr.ai/latest/en/version3.x/installation.html
 - Ollama Qwen3-VL: https://ollama.com/library/qwen3-vl
+# board_game
