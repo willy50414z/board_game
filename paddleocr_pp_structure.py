@@ -57,7 +57,14 @@ def normalize_bbox(raw_bbox: Any, width: int, height: int) -> tuple[int, int, in
     return left, top, right, bottom
 
 
-def parse_pic_to_json(image_path: Path, output_dir: Path, device: str = "cpu") -> Path:
+def parse_pic_to_json(image_path: Path, output_dir: Path, device: str = "cpu",
+                      pre_rectified: bool = False) -> Path:
+    """Parse one page image into page_context.json.
+
+    pre_rectified=True skips Paddle's own orientation classify + dewarping, which is
+    correct when the caller already fixed the orientation (mannual_parser.py step 0)
+    and saves a lot of CPU time on 4K photos.
+    """
     if not image_path.is_file():
         raise FileNotFoundError(image_path)
 
@@ -69,8 +76,8 @@ def parse_pic_to_json(image_path: Path, output_dir: Path, device: str = "cpu") -
     # is compatible with the Ollama ROCm setup.
     pipeline = PPStructureV3(
         lang="chinese_cht",
-        use_doc_orientation_classify=True,
-        use_doc_unwarping=True,
+        use_doc_orientation_classify=not pre_rectified,
+        use_doc_unwarping=not pre_rectified,
         use_textline_orientation=True,
         device=device,
         enable_mkldnn=False,
@@ -199,8 +206,10 @@ def main() -> None:
     parser.add_argument("image", type=Path, help="單頁照片，例如 page_001.jpg")
     parser.add_argument("--out", type=Path, default=Path("output_paddle"))
     parser.add_argument("--device", default="cpu", help="先用 cpu；確認後再測 gpu")
+    parser.add_argument("--pre-rectified", action="store_true",
+                        help="圖片朝向已先矯正過，跳過 Paddle 的方向判断與去彎曲（4K 照片差很多）")
     args = parser.parse_args()
-    parse_pic_to_json(args.image, args.out, args.device)
+    parse_pic_to_json(args.image, args.out, args.device, pre_rectified=args.pre_rectified)
 
 
 if __name__ == "__main__":

@@ -5,3 +5,4 @@
 /output_paddle/
 /boardgame_output/
 .idea/**
+/__pycache__/
