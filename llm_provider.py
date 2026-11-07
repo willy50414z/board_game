@@ -97,23 +97,64 @@ CAPABILITIES: dict[str, Capability] = {
 
 
 _ENV_LOADED = False
+_TRUE = ("1", "true", "yes", "y", "on")
 
 
-def load_env(env_path: Path | None = None) -> None:
-    """很小的 .env 載入器（不拉 python-dotenv 依賴）；`build_client()` 會自動呼叫。"""
+def parse_env_line(line: str) -> tuple[str, str] | None:
+    """`KEY=value   # 註解` → ("KEY", "value")；註解行／空白行／沒有 `=` 的爛行 → None。
+
+    行尾註解只認「空白後的 #」，值裡的 #（URL 錨點）才會留下來；
+    成對引號剝掉（`KEY="a # b"` 值是 `a # b`）。舊版把整行連註解一起當值塞進
+    os.environ，害得 `.env.sample` 那種寫法一填就得到 `gpt-6-luna   # 模型名`。
+    """
+    text = line.strip()
+    if not text or text.startswith("#") or "=" not in text:
+        return None
+    key, _, value = text.partition("=")
+    key = key.strip()
+    if key.startswith("export "):       # 有人會直接把 shell 的 export 行貼進來
+        key = key[len("export "):].strip()
+    value = value.strip()
+    quote = value[:1]
+    if quote in ("'", '"'):
+        closing = value.find(quote, 1)
+        if closing > 0:           # 引號內原樣保留（裡面的 # 不是註解），尾端註解整段丟掉
+            value = value[1:closing].strip()
+            return (key, value) if key else None
+        value = value.strip(quote)        # 只有一半引號：退回舊行為，別把引號當值
+    comment = re.search(r"\s#", value)
+    if comment:
+        value = value[:comment.start()].strip()
+    return (key, value) if key else None
+
+
+def load_env(env_path: Path | None = None, force: bool = False) -> None:
+    """很小的 .env 載入器（不拉 python-dotenv 依賴）；`build_client()` 會自動呼叫。
+
+    預設 **shell 贏過檔案**（`os.environ.setdefault`，與 python-dotenv 同語義），
+    這樣 `export OLLAMA_HOST=...` 那種一次性覆寫才有效；要讓 `.env` 說了算
+    （批次、排程、CI）就在 shell 設 `ENV_FORCE=1`，或直接 `load_env(force=True)`。
+    空值（`KEY=`）代表「這欄沒填」，一律不覆蓋既有值。
+    """
     global _ENV_LOADED
-    if _ENV_LOADED:
+    force = force or str(os.getenv("ENV_FORCE", "")).strip().lower() in _TRUE
+    if _ENV_LOADED and not force:
         return
     path = Path(env_path) if env_path else Path(__file__).resolve().parent / ".env"
     _ENV_LOADED = True          # 沒檔案也標起來，避免每次 build_client 都掃 disk
     if not path.is_file():
         return
     for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
+        parsed = parse_env_line(line)
+        if not parsed:
             continue
-        key, _, value = line.partition("=")
-        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+        key, value = parsed
+        if not value:
+            os.environ.setdefault(key, "")
+        elif force:
+            os.environ[key] = value
+        else:
+            os.environ.setdefault(key, value)
 
 
 def resolve_provider(name: str) -> str:

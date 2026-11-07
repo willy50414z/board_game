@@ -159,9 +159,19 @@ subjects、layout、other_artwork、裁切 5 張、records 11 筆、`validate` 0
   正好重現標竿座標系（實測 VLM bbox 鏡像對上標竿 bbox，確認無誤）。
 - 標竿 `images[].bbox` == 實際裁圖尺寸（如 a1-rose bbox 330x430 == png 330x430），
   代表人工稿的 bbox 已含留白；`--crop-pad` 預設 15px 並把**裁後實際框**寫回 bbox，兩者永遠一致。
-- `.env` 現有：`AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT`、`AZURE_API_KEY`、
-  `AZURE_OPENAI_ENDPOINT=.../openai/v1`、`AZURE_ENDPOINT`、`AZURE_MODEL=gpt-6-luna`
-  → `--provider gpt` 直接用這三個（key 吃 `AZURE_API_KEY`），不用另外設 openai SDK 環境變數。
+- `.env` 已收齊全部設定（範本 `.env.sample`，鍵集合由 `check_env.py` 守住）：
+  `AZURE_OPENAI_ENDPOINT`＋`AZURE_OPENAI_API_KEY`＋`AZURE_MODEL`（`--provider gpt` 吃這三個）、
+  `AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT`＋`AZURE_API_KEY`（`--ocr azure`）、
+  `OLLAMA_HOST`／`OLLAMA_MODEL`／`OLLAMA_API_KEY`（`--provider ollama`，本機
+  `127.0.0.1:11434` 有 `qwen3-vl:8b-instruct`、`qwen3.8:27b`）、`AZURE_ENDPOINT`（留檔，沒人讀）。
+  兩套 Azure 資源同一把 key，所以 `AZURE_OPENAI_API_KEY` 直接複製 `AZURE_API_KEY`。
+- **三個 `.env` 相關的坑已修**（`llm_provider.load_env`／`parse_env_line` 兩個、`01_azure_document_intelligence.py` 一個）：
+  舊版不剝行尾 `#`，照 `.env.sample` 那種 `KEY=value # 註解` 一填就變成值裡含「`# 註解`」；
+  舊版也永遠 `setdefault`，shell 有髒值時 `.env` 說不动它 → 新增 `ENV_FORCE=1`／`load_env(force=True)`。
+  預設仍是 shell 贏（`export` 覆寫要用），空值 `KEY=` 一律不覆蓋。
+  另：`01_azure_document_intelligence.py` 原本硬 `from dotenv import load_dotenv`，
+  但本專案沒裝 python-dotenv → 單獨跑必 `ModuleNotFoundError`（經 mannual_parser 跑才有 shim），
+  已改成 ImportError 時退回 `llm_provider.load_env`。
 - **時間**：PaddleOCR PP-StructureV3 在 4000x2252 上、開著去彎曲＝單頁 15-20 分鐘（絕大部分
   是 UVDoc／方向判斷）。朝向本來就由 [0] 做，所以 `run_ocr` 預設傳 `pre_rectified=True`；
   同一頁要重跑判讀就 `--page-context output/<doc>/ocr/page_context.json` 整個跳過 OCR。

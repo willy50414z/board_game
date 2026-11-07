@@ -34,14 +34,31 @@ python mannual_parser.py validate output/bbw_1/bbw_1.json --strict
 
 ## `.env`
 
+**範本在 `.env.sample`**（進版控的是範本，真的 `.env` 已被 `.gitignore` 排除）：
+
+```bash
+cp .env.sample .env    # 再填金鑰；.env.sample 的鍵集合由 check_env.py 守住
 ```
-AZURE_OPENAI_ENDPOINT=https://<resource>.openai.azure.com/openai/v1   # GPT（OpenAI 相容端點）
-AZURE_API_KEY=...                                                     # 或 AZURE_OPENAI_API_KEY
-AZURE_MODEL=gpt-6-luna
-AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT=...                              # 走 --ocr azure 時要
-OLLAMA_HOST=http://localhost:11434                                    # 走 --provider ollama 時要
-OLLAMA_MODEL=qwen3-vl:8b-instruct
-```
+
+| 鍵 | 誰在用 | 說明 |
+|---|---|---|
+| `AZURE_OPENAI_ENDPOINT` | `llm_provider`（`--provider gpt`） | OpenAI 相容端點；給根位址會自動補 `/openai/v1` |
+| `AZURE_OPENAI_API_KEY` | 同上 | 沒設就沿用 `AZURE_API_KEY`（同一把 key 時不必貼兩次） |
+| `AZURE_MODEL` | 同上 | 預設 `gpt-6-luna`；`--model` 可覆寫 |
+| `AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT` | `01_azure_document_intelligence.py`（`--ocr azure`） | 走 `--ocr paddle` 時用不到 |
+| `AZURE_API_KEY` | 同上 | OCR 金鑰，也是上面那欄的 fallback |
+| `OLLAMA_HOST` | `--provider ollama` | 給根位址即可（自動補 `/v1`）；另一台 tailscale `http://100.123.189.49:7401` |
+| `OLLAMA_MODEL` | 同上 | 必須是本機有的 tag：`curl $OLLAMA_HOST/api/tags` |
+| `OLLAMA_API_KEY` | 同上 | Ollama 預設不驗金鑰，佔位 |
+
+載入規則（`llm_provider.load_env`，不依賴 python-dotenv）：
+
+- `KEY=value   # 行尾註解` 的註解會被剝掉；值要用 `#` 就加引號 `KEY="a # b"`。
+- 空值 `KEY=`＝還沒填，**不會**蓋掉既有值。
+- 預設 **shell 贏過 `.env`**（跟 python-dotenv 一樣，方便 `export` 做一次性覆寫）；
+  批次／排程要讓 `.env` 說了算就 `ENV_FORCE=1 python mannual_parser.py ...`。
+- `provider=auto`：`AZURE_OPENAI_ENDPOINT` ＋ 金鑰齊了選 `gpt`，否則退回 `ollama`。
+- 驗設定（含真打兩家模型）：`python check_env.py --live`。
 
 ## 模型 provider 層（`llm_provider.py`）
 

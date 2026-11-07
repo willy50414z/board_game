@@ -6,3 +6,4 @@
 /boardgame_output/
 .idea/**
 /__pycache__/
+/.env.check.tmp

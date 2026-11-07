@@ -16,7 +16,10 @@ from typing import Any
 from azure.core.credentials import AzureKeyCredential
 from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.ai.documentintelligence.models import AnalyzeOutputOption
-from dotenv import load_dotenv
+try:                    # 本專案沒裝 python-dotenv：單獨跑這支也要讀到 .env（經mannual_parser 跑時另有 shim）
+    from dotenv import load_dotenv
+except ModuleNotFoundError:
+    from llm_provider import load_env as load_dotenv
 
 
 def safe_name(value: str) -> str:
